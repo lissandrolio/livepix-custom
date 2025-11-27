@@ -1,0 +1,80 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Receber via LivePix - Meu Design</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    /* Estilize do seu jeito */
+    body{font-family:Arial,Helvetica,sans-serif;background:#f6f7f8;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}
+    .card{background:#fff;padding:28px;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,0.08);width:360px}
+    .avatar{width:80px;height:80px;border-radius:50%;background:#ddd;margin:0 auto 12px}
+    h2{text-align:center;margin:8px 0 16px}
+    input, textarea{width:100%;padding:10px;border:1px solid #ddd;border-radius:6px;margin-bottom:10px}
+    button{width:100%;padding:12px;border:none;border-radius:8px;background:#0b57a4;color:#fff;font-weight:700}
+    .qr{display:flex;align-items:center;justify-content:center;margin-top:16px}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="avatar"></div>
+    <h2>Envie um Pix</h2>
+    <input id="nome" placeholder="Seu nome (opcional)">
+    <textarea id="mensagem" placeholder="Mensagem (opcional)"></textarea>
+    <input id="valor" placeholder="Valor em reais (ex: 1.50)">
+    <button id="btn">Gerar QR / Pagar</button>
+
+    <div id="resultado" class="qr" style="display:none">
+      <div>
+        <img id="qrimg" alt="QR Code" style="max-width:250px;display:block;margin:0 auto">
+        <p id="pixstring" style="word-break:break-all;font-size:12px;text-align:center"></p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('btn').addEventListener('click', async () => {
+      const nome = document.getElementById('nome').value;
+      const mensagem = document.getElementById('mensagem').value;
+      const valorTxt = document.getElementById('valor').value.replace(',', '.');
+
+      if (!valorTxt || isNaN(Number(valorTxt))) {
+        alert('Informe um valor válido');
+        return;
+      }
+
+      // Converte para centavos (ajuste se a sua API usar reais direto)
+      const valor = Math.round(Number(valorTxt) * 100);
+
+      // Chama seu backend
+      const resp = await fetch('/create-charge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nome, mensagem, valor })
+      });
+
+      if (!resp.ok) {
+        const err = await resp.json();
+        alert('Erro: ' + (err.error || JSON.stringify(err)));
+        return;
+      }
+
+      const data = await resp.json();
+      const qrDataUrl = data.qrDataUrl;
+      const pixString = data.pixString || (data.charge && data.charge.pix?.qr_code);
+
+      if (qrDataUrl) {
+        document.getElementById('qrimg').src = qrDataUrl;
+        document.getElementById('pixstring').innerText = pixString || '';
+        document.getElementById('resultado').style.display = 'block';
+      } else if (pixString) {
+        // se backend não gerou imagem, podemos gerar com API de terceiros ou exibir a string
+        document.getElementById('pixstring').innerText = pixString;
+        document.getElementById('resultado').style.display = 'block';
+      } else {
+        alert('Resposta inesperada do servidor.');
+      }
+    });
+  </script>
+</body>
+</html>
